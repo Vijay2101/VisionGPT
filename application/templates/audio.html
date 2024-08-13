@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Recorder</title>
+</head>
+<body>
+    <h1>Audio Recorder</h1>
+    <button id="recordButton">Record</button>
+    <button id="stopButton" disabled>Stop</button>
+    <p id="status"></p>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        var recorder;
+
+        $('#recordButton').click(function() {
+            $('#recordButton').prop('disabled', true);
+            $('#stopButton').prop('disabled', false);
+            $('#status').text('Recording...');
+
+            // Initialize the recorder
+            recorder = new Recorder();
+            recorder.startRecording();
+        });
+
+        $('#stopButton').click(function() {
+            $('#recordButton').prop('disabled', false);
+            $('#stopButton').prop('disabled', true);
+            $('#status').text('Stopped recording');
+
+            // Stop recording and send audio to server
+            recorder.stopRecording(function(audioBlob) {
+                var formData = new FormData();
+                formData.append('audio', audioBlob, 'recorded_audio.wav');
+
+                $.ajax({
+                    url: '/record',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        console.log('Audio uploaded:', response.audio_filename);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error:', error);
+                    }
+                });
+            });
+        });
+
+        function Recorder() {
+            this.mediaRecorder = null;
+            this.chunks = [];
+
+            this.startRecording = function() {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        this.mediaRecorder = new MediaRecorder(stream);
+                        this.mediaRecorder.ondataavailable = event => this.chunks.push(event.data);
+                        this.mediaRecorder.start();
+                    })
+                    .catch(error => {
+                        console.error('Error accessing microphone:', error);
+                    });
+            };
+
+            this.stopRecording = function(callback) {
+                this.mediaRecorder.onstop = () => {
+                    var audioBlob = new Blob(this.chunks, { type: 'audio/wav' });
+                    callback(audioBlob);
+                };
+
+                this.mediaRecorder.stop();
+            };
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Streaming</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+
+  <script>
+    function captureFrame() {
+        fetch('/', { 
+            method: 'POST' 
+        })
+        .then(response => response.json())
+    }
+</script>
+</head>
+<body>
+    <h1>Video Streaming</h1>
+    <img src="{{ url_for('video_feed') }}" width="100%">
+
+    <button id="startButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+    <audio id="audioPlayback" controls></audio>
+    <div class="op">
+        <h2 class="ques">Question:{{ques}}</h2>
+        <h2 class="res">Response:{{res}}</h2>
+    </div>
+  
+    <script>
+      
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById('startButton').onclick = async () => {
+            let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                let audioBlob = new Blob(audioChunks, { 'type': 'audio/wav; codecs=opus' });
+                audioChunks = [];
+                let audioUrl = URL.createObjectURL(audioBlob);
+                document.getElementById('audioPlayback').src = audioUrl;
+
+                // Send the audio file to the server
+                let formData = new FormData();
+                formData.append('audio_data', audioBlob, 'recorded_audio.wav');
+                
+                await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                }).then(response => {
+                    if (response.ok) {
+                        alert('Audio uploaded successfully.');
+                    } else {
+                        alert('Failed to upload audio.');
+                    }
+                });
+            };
+
+            mediaRecorder.start();
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+        };
+
+        document.getElementById('stopButton').onclick = () => {
+            mediaRecorder.stop();
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+            captureFrame()
+        };
+
+
+
+        
+  </script>
+</body>
+
+</html>

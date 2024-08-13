@@ -1,0 +1,7 @@
+flask
+opencv-python
+requests
+google.generativeai
+python-dotenv
+Pillow
+
